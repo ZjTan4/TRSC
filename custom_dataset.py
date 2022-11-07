@@ -21,6 +21,8 @@ class CustomDatsetMemory(torch.utils.data.Dataset):
 
         self.images = read_images(images)
         self.masks = read_images(masks)
+        # print(self.images.shape)
+        # print(self.masks.shape)
 
     def __getitem__(self, index):
         image = self.images[index]
