@@ -18,22 +18,30 @@ else:
     print('cpu')
 device = torch.device("cuda:9" if use_cuda else "cpu")
 
-# data_path = "./data/bdd10k"
 data_path = "./data/RUGD"
+img_ext = '.png'
+# data_path = "./data/Rellis-3D"
+# img_ext = '.jpg'
+
 batch_size = 50
 transform = transforms.Compose([
     transforms.ToTensor(), 
 ])
 
+TRAIN_RATIO = 0.7
+
 # dataset = CustomDatsetMemory(data_path)
-dataset = CustomDatsetIO(data_path, img_ext='.png')
-dataloader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, drop_last=True, shuffle=True)
+dataset = CustomDatsetIO(data_path, img_ext=img_ext)
+train_set, test_set = torch.utils.data.random_split(dataset, [int(0.7 * len(dataset)), len(dataset) - int(0.7 * len(dataset))])
+train_loader = torch.utils.data.DataLoader(train_set, batch_size=batch_size, drop_last=True, shuffle=True)
+test_loader = torch.utils.data.DataLoader(test_set, batch_size=batch_size, drop_last=True, shuffle=True)
 
 num_epoch = 100
 for epoch in range(num_epoch):
     start = datetime.now()
-    for i, (img, mask) in enumerate(dataloader):
+    for i, (img, mask) in enumerate(train_loader):
         print(img.shape)
+        print(mask.shape)
         # img = img.to(device)
         # mask = mask.to(device)
         plt.imshow(img[0])

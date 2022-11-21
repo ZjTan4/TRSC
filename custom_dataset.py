@@ -80,11 +80,9 @@ def read_images(image_paths):
         row, column = im.shape
 
     images = torch.empty([frame, row, column, byte], dtype=im.dtype).squeeze()
-    # print("loading images into memory")
     for i in range(frame):
         print("loading {} file: {}".format(i + 1, image_paths[i].stem), end = '\r')
         im = torch.tensor(imageio.imread(str(image_paths[i])))
         images[i] = im
     print("")
-    # print("loaded {} frames into memory".format(frame))
     return images
