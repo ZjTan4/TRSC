@@ -1,4 +1,4 @@
-import imageio
+import imageio.v2 as imageio
 from pathlib import Path
 import torch
 
