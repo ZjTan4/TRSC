@@ -1,9 +1,9 @@
 import pathlib
-import imageio.v2 as imageio
 import torch
 from torchvision.utils import save_image
 import numpy as np
 import matplotlib.pyplot as plt
+from PIL import Image
 
 CLASS = {
     0: {"color": [0, 0, 0],  "name": "void"},
@@ -34,14 +34,13 @@ def main():
 
     count = 1
     for color_mask in color_masks:
-        mask = torch.tensor(imageio.imread(str(color_mask)))
+        mask = torch.tensor(np.array(Image.open(str(color_mask))))
         label = convert_mask(mask, False)
 
         reverted_mask = convert_mask(label, True)
         assert (reverted_mask.numpy() == mask.numpy()).all()
-        # unique_labels = label.unique()
-        # if 1 in unique_labels:
-        #     print(unique_labels)
+        
+        # imageio.imwrite(output_dir.format(color_mask.stem), label)
         # save_image(label.numpy(), output_dir.format(color_mask.stem))
         
         print("{}: ".format(count), color_mask.stem, end='\r')
@@ -50,13 +49,13 @@ def main():
 def convert_mask(mask, inverse):
     temp = mask.numpy()
     if not inverse:
-        label = np.zeros((temp.shape[0], temp.shape[1]))    
+        label = np.zeros((temp.shape[0], temp.shape[1]), dtype=np.uint8)    
         for v, k in CLASS.items():
-            label[(temp == k["color"]).all(axis=2)] = v
+            label[(temp == k["color"]).all(axis=2)] = 12 * v
     else:
         label = np.zeros(temp.shape + (3,), dtype=np.uint8)
         for v, k in CLASS.items():
-            label[temp == v, :] = k["color"]
+            label[temp == v * 12, :] = k["color"]
     return torch.Tensor(label)
 
 if __name__ == "__main__":
@@ -64,7 +63,7 @@ if __name__ == "__main__":
     
     ## testing1
     # path = '/home/ztan4/Documents/TRSC/data/Rellis-3D/masks/frame000000-1581623790_349.png'
-    # mask = torch.tensor(imageio.imread(str(path)))
+    # mask = torch.tensor(np.array(Image.open(str(path))))
     # label = convert_mask(mask, False)
     # print(label.shape)
     # new_mask = convert_mask(label, True)
@@ -74,9 +73,9 @@ if __name__ == "__main__":
     ## testing2
     filename = "frame000000-1581623790_349"
     label_path = "/home/ztan4/Documents/TRSC/output/Rellis-3D/masks/{}.png".format(filename)
-    label = torch.tensor(imageio.imread(str(label_path)))
+    label = torch.tensor(np.array(Image.open(str(label_path))))
     reverted_mask = convert_mask(label, True)
     mask_path = "./data/Rellis-3D/masks/{}.png".format(filename)
-    mask = torch.tensor(imageio.imread(str(mask_path)))
+    mask = torch.tensor(np.array(Image.open(str(mask_path))))
     print((mask.numpy() == reverted_mask.numpy()))
     print(torch.Tensor(label).unique())

@@ -1,7 +1,7 @@
-import imageio.v2 as imageio
 from pathlib import Path
 import torch
-
+from PIL import Image
+import numpy as np
 
 
 class CustomDatsetMemory(torch.utils.data.Dataset):
@@ -57,8 +57,8 @@ class CustomDatsetIO(torch.utils.data.Dataset):
         self.masks = masks
 
     def __getitem__(self, index):
-        image = torch.tensor(imageio.imread(str(self.images[index])))
-        mask = torch.tensor(imageio.imread(str(self.masks[index])))
+        image = torch.tensor(np.array(Image.open(str(self.images[index]))))
+        mask = torch.tensor(np.array(Image.open(str(self.masks[index]))))
 
         if self.img_transform is not None:
             image = self.img_transform(image)
@@ -72,7 +72,7 @@ class CustomDatsetIO(torch.utils.data.Dataset):
 
 def read_images(image_paths):
     frame = len(image_paths)
-    im = torch.tensor(imageio.imread(str(image_paths[0])))
+    im = torch.tensor(np.array(Image.open(str(image_paths[0]))))
     byte = 1
     if len(im.shape) == 3:
         row, column, byte = im.shape
@@ -82,7 +82,7 @@ def read_images(image_paths):
     images = torch.empty([frame, row, column, byte], dtype=im.dtype).squeeze()
     for i in range(frame):
         print("loading {} file: {}".format(i + 1, image_paths[i].stem), end = '\r')
-        im = torch.tensor(imageio.imread(str(image_paths[i])))
+        im = torch.tensor(np.array(Image.open(str(image_paths[i]))))
         images[i] = im
     print("")
     return images
