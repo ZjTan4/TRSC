@@ -4,12 +4,14 @@ import torch
 import torchvision.transforms as transforms
 import torchvision.datasets as dset
 
+from models.CNN import CNN1
+
 from custom_dataset import CustomDatsetMemory, CustomDatsetIO
 
 import matplotlib.pyplot as plt
 
-if not os.path.exists('./model'):
-    os.mkdir('./model')
+# if not os.path.exists('./model'):
+#     os.mkdir('./model')
 
 use_cuda = True if torch.cuda.is_available() else False
 if use_cuda:
@@ -38,6 +40,15 @@ test_loader = torch.utils.data.DataLoader(test_set, batch_size=batch_size, drop_
 print(len(train_loader))
 print(len(test_loader))
 num_epoch = 200
+
+model = CNN1()
+# criterion = 
+optimizer = torch.optim.SGD(
+    params=dict(model.named_parameters()), lr=0.01, 
+    momentum=0.9, 
+    weight_decay=0.0001, 
+    nesterov=False,
+)
 
 for epoch in range(num_epoch):
     start = datetime.now()
