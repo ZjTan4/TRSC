@@ -4,7 +4,7 @@ import torch
 import torchvision.transforms as transforms
 import torchvision.datasets as dset
 
-from models.CNN import CNN1
+from models.cnn import CNN1
 
 from custom_dataset import CustomDatsetMemory, CustomDatsetIO
 
@@ -42,9 +42,10 @@ print(len(test_loader))
 num_epoch = 200
 
 model = CNN1()
-# criterion = 
+criterion = None
 optimizer = torch.optim.SGD(
     params=dict(model.named_parameters()), lr=0.01, 
+    # Optional Params
     momentum=0.9, 
     weight_decay=0.0001, 
     nesterov=False,
@@ -53,10 +54,14 @@ optimizer = torch.optim.SGD(
 for epoch in range(num_epoch):
     start = datetime.now()
     for i, (img, mask) in enumerate(train_loader):
-        print(img.shape)
-        print(mask.shape)
-        # img = img.to(device)
-        # mask = mask.to(device)
+        # print(img.shape)
+        # print(mask.shape)
+        img = img.to(device)
+        mask = mask.to(device)
+
+        pred_mask = model(img)
+        loss = criterion(pred_mask, mask)
+
         # plt.imshow(img[0])
         # plt.show()
         # plt.imshow(img[1])
@@ -65,6 +70,8 @@ for epoch in range(num_epoch):
         # plt.show()
         # plt.imshow(mask[1])
         # plt.show()
+
+
 
         print(datetime.now() - start)
         start = datetime.now()
