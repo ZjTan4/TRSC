@@ -54,7 +54,7 @@ optimizer = torch.optim.SGD(
     weight_decay=0.0001, 
     nesterov=False,
 )
-
+model.train()
 for epoch in range(num_epoch):
     start = datetime.now()
     for i, (img, mask) in enumerate(train_loader):
@@ -65,6 +65,11 @@ for epoch in range(num_epoch):
 
         pred_mask = model(img)
         loss = criterion(pred_mask, mask)
+
+        model.zero_grad()
+        loss.backward()
+        optimizer.step()
+
 
         # plt.imshow(img[0])
         # plt.show()

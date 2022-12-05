@@ -4,6 +4,7 @@ from torchvision.utils import save_image
 import numpy as np
 import matplotlib.pyplot as plt
 from PIL import Image
+from utils.utils import *
 
 CLASS = {
     0: {"color": [0, 0, 0],  "name": "void"},
