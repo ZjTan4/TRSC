@@ -39,7 +39,7 @@ def main():
 
         reverted_mask = convert_mask(label, True)
         assert (reverted_mask.numpy() == mask.numpy()).all()
-        save_label = Image.fromarray(label.numpt())
+        save_label = Image.fromarray(label.numpy())
         # imageio.imwrite(output_dir.format(color_mask.stem), label)
         # save_image(label.numpy(), output_dir.format(color_mask.stem))
         

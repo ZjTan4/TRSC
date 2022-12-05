@@ -3,9 +3,11 @@ import os
 import torch
 import torchvision.transforms as transforms
 import torchvision.datasets as dset
+import torch.nn as nn
 
 from models.cnn import CNN1
-
+from models.hrnet import HRNet
+from models.unet import UNet
 from custom_dataset import CustomDatsetMemory, CustomDatsetIO
 
 import matplotlib.pyplot as plt
@@ -41,8 +43,10 @@ print(len(train_loader))
 print(len(test_loader))
 num_epoch = 200
 
-model = CNN1()
-criterion = None
+# model = CNN1().to(device)
+# model = HRNet().to(device)
+model = UNet().to(device)
+criterion = nn.CrossEntropyLoss()
 optimizer = torch.optim.SGD(
     params=dict(model.named_parameters()), lr=0.01, 
     # Optional Params
@@ -70,8 +74,6 @@ for epoch in range(num_epoch):
         # plt.show()
         # plt.imshow(mask[1])
         # plt.show()
-
-
 
         print(datetime.now() - start)
         start = datetime.now()
