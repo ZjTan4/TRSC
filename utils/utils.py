@@ -1,4 +1,5 @@
 import numpy as np
+import torch
 
 def rgb2mask(img, color_id):
     # assert len(img) == 3
@@ -12,3 +13,15 @@ def rgb2mask(img, color_id):
                 print("unknown color, exiting...")
                 exit(0)
     return out
+
+def convert_mask(mask, classes, inverse):
+    temp = mask.numpy()
+    if not inverse:
+        label = np.zeros((temp.shape[0], temp.shape[1]), dtype=np.uint8)    
+        for v, k in classes.items():
+            label[(temp == k["color"]).all(axis=2)] = 12 * v
+    else:
+        label = np.zeros(temp.shape + (3,), dtype=np.uint8)
+        for v, k in classes.items():
+            label[temp == v * 12, :] = k["color"]
+    return torch.Tensor(label)

@@ -1,0 +1,89 @@
+import torch
+import tqdm
+import numpy as np
+import os
+import torch.nn.functional as F
+
+
+def testval(config, test_dataset, testloader, model,
+            sv_dir='', sv_pred=False):
+    model.eval()
+    confusion_matrix = np.zeros(
+        (config.DATASET.NUM_CLASSES, config.DATASET.NUM_CLASSES))
+    with torch.no_grad():
+        for index, batch in enumerate(tqdm(testloader)):
+            image, label, _, name, *border_padding = batch
+            size = label.size()
+            pred = test_dataset.multi_scale_inference(
+                config,
+                model,
+                image,
+                scales=config.TEST.SCALE_LIST,
+                flip=config.TEST.FLIP_TEST)
+
+            if len(border_padding) > 0:
+                border_padding = border_padding[0]
+                pred = pred[:, :, 0:pred.size(2) - border_padding[0], 0:pred.size(3) - border_padding[1]]
+
+            if pred.size()[-2] != size[-2] or pred.size()[-1] != size[-1]:
+                pred = F.interpolate(
+                    pred, size[-2:],
+                    mode='bilinear', align_corners=config.MODEL.ALIGN_CORNERS
+                )
+
+            confusion_matrix += get_confusion_matrix(
+                label,
+                pred,
+                size,
+                config.DATASET.NUM_CLASSES,
+                config.TRAIN.IGNORE_LABEL)
+
+            if sv_pred:
+                sv_path = os.path.join(sv_dir, 'test_results')
+                if not os.path.exists(sv_path):
+                    os.mkdir(sv_path)
+                test_dataset.save_pred(pred, sv_path, name)
+
+            if index % 100 == 0:
+                # logging.info('processing: %d images' % index)
+                pos = confusion_matrix.sum(1)
+                res = confusion_matrix.sum(0)
+                tp = np.diag(confusion_matrix)
+                IoU_array = (tp / np.maximum(1.0, pos + res - tp))
+                mean_IoU = IoU_array.mean()
+                # logging.info('mIoU: %.4f' % (mean_IoU))
+
+    pos = confusion_matrix.sum(1)
+    res = confusion_matrix.sum(0)
+    tp = np.diag(confusion_matrix)
+    pixel_acc = tp.sum()/pos.sum()
+    mean_acc = (tp/np.maximum(1.0, pos)).mean()
+    IoU_array = (tp / np.maximum(1.0, pos + res - tp))
+    mean_IoU = IoU_array.mean()
+
+    return mean_IoU, IoU_array, pixel_acc, mean_acc
+
+def get_confusion_matrix(label, pred, size, num_class, ignore=-1):
+    """
+    Calcute the confusion matrix by given label and pred
+    """
+    output = pred.cpu().numpy().transpose(0, 2, 3, 1)
+    seg_pred = np.asarray(np.argmax(output, axis=3), dtype=np.uint8)
+    seg_gt = np.asarray(
+    label.cpu().numpy()[:, :size[-2], :size[-1]], dtype=np.int)
+
+    ignore_index = seg_gt != ignore
+    seg_gt = seg_gt[ignore_index]
+    seg_pred = seg_pred[ignore_index]
+
+    index = (seg_gt * num_class + seg_pred).astype('int32')
+    label_count = np.bincount(index)
+    confusion_matrix = np.zeros((num_class, num_class))
+
+    for i_label in range(num_class):
+        for i_pred in range(num_class):
+            cur_index = i_label * num_class + i_pred
+            if cur_index < len(label_count):
+                confusion_matrix[i_label,
+                                 i_pred] = label_count[cur_index]
+    return confusion_matrix
