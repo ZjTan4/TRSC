@@ -62,7 +62,7 @@ class Decoder(nn.Module):
 
 class UNet(nn.Module):
     def __init__(self, 
-        encoder_chs=(6, 16, 32, 64, 128), 
+        encoder_chs=(3, 16, 32, 64, 128), 
         decoder_chs=(128, 64, 32, 16), 
         num_class=1, 
     ) -> None:

@@ -67,7 +67,7 @@
 # if __name__ == "__main__":
 #     main()
 
-# Adapted from OFFSEG by Viswanath et al. 
+# Adapted from GaNav by Guan et al. 
 import argparse
 import os.path as osp
 import numpy as np

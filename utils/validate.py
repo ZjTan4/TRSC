@@ -1,42 +1,53 @@
 import torch
-import tqdm
 import numpy as np
 import os
 import torch.nn.functional as F
+from torchmetrics.classification import ConfusionMatrix
 
+# Adapted from OFFSEG by Viswanath et al. 
+def multi_scale_inference(test_dataset, model, image, scales):
+    pass
 
-def testval(config, test_dataset, testloader, model,
-            sv_dir='', sv_pred=False):
+def testval(test_dataset, testloader, model, device,
+            sv_dir='', sv_pred=False, num_classes=6):
     model.eval()
-    confusion_matrix = np.zeros(
-        (config.DATASET.NUM_CLASSES, config.DATASET.NUM_CLASSES))
+    compute_confusion_matrix = ConfusionMatrix('multiclass', num_classes=num_classes).to(device)
+    confusion_matrix = np.zeros((num_classes, num_classes))
     with torch.no_grad():
-        for index, batch in enumerate(tqdm(testloader)):
-            image, label, _, name, *border_padding = batch
+        for index, batch in enumerate(testloader):
+            image, label, name = batch
+            image = image.to(device)
+            label = label.to(device)
             size = label.size()
-            pred = test_dataset.multi_scale_inference(
-                config,
-                model,
-                image,
-                scales=config.TEST.SCALE_LIST,
-                flip=config.TEST.FLIP_TEST)
+            # pred = multi_scale_inference(
+            #     test_dataset, 
+            #     model,
+            #     image,
+            #     scales=[1],
+            # )
+            pred = model(image)
 
-            if len(border_padding) > 0:
-                border_padding = border_padding[0]
-                pred = pred[:, :, 0:pred.size(2) - border_padding[0], 0:pred.size(3) - border_padding[1]]
+            # if len(border_padding) > 0:
+            #     border_padding = border_padding[0]
+            #     pred = pred[:, :, 0:pred.size(2) - border_padding[0], 0:pred.size(3) - border_padding[1]]
 
             if pred.size()[-2] != size[-2] or pred.size()[-1] != size[-1]:
                 pred = F.interpolate(
                     pred, size[-2:],
-                    mode='bilinear', align_corners=config.MODEL.ALIGN_CORNERS
+                    mode='bilinear', align_corners=True
                 )
 
-            confusion_matrix += get_confusion_matrix(
-                label,
-                pred,
-                size,
-                config.DATASET.NUM_CLASSES,
-                config.TRAIN.IGNORE_LABEL)
+            # confusion_matrix += get_confusion_matrix(
+            #     label,
+            #     pred,
+            #     size,
+            #     num_classes)
+            pred = pred.permute(0, 2, 3, 1)
+            # pred = pred.cpu().numpy().transpose(0, 2, 3, 1)
+            pred = torch.argmax(pred, dim=3)
+            # pred = np.asarray(np.argmax(pred, axis=3), dtype=np.uint8)
+            label = label.squeeze()
+            confusion_matrix += compute_confusion_matrix(torch.Tensor(pred), torch.Tensor(label)).cpu().numpy()
 
             if sv_pred:
                 sv_path = os.path.join(sv_dir, 'test_results')
@@ -63,20 +74,23 @@ def testval(config, test_dataset, testloader, model,
 
     return mean_IoU, IoU_array, pixel_acc, mean_acc
 
-def get_confusion_matrix(label, pred, size, num_class, ignore=-1):
+def get_confusion_matrix(label, pred, size, num_class,):
+# ignore=-1):
     """
     Calcute the confusion matrix by given label and pred
     """
     output = pred.cpu().numpy().transpose(0, 2, 3, 1)
     seg_pred = np.asarray(np.argmax(output, axis=3), dtype=np.uint8)
     seg_gt = np.asarray(
-    label.cpu().numpy()[:, :size[-2], :size[-1]], dtype=np.int)
-
-    ignore_index = seg_gt != ignore
-    seg_gt = seg_gt[ignore_index]
-    seg_pred = seg_pred[ignore_index]
+    label.squeeze().cpu().numpy()[:, :size[-2], :size[-1]], dtype=np.int)
+    print(seg_gt.shape)
+    print(seg_pred.shape)
+    # ignore_index = seg_gt != ignore
+    # seg_gt = seg_gt[ignore_index]
+    # seg_pred = seg_pred[ignore_index]
 
     index = (seg_gt * num_class + seg_pred).astype('int32')
+    print(index.shape)
     label_count = np.bincount(index)
     confusion_matrix = np.zeros((num_class, num_class))
 
@@ -84,6 +98,5 @@ def get_confusion_matrix(label, pred, size, num_class, ignore=-1):
         for i_pred in range(num_class):
             cur_index = i_label * num_class + i_pred
             if cur_index < len(label_count):
-                confusion_matrix[i_label,
-                                 i_pred] = label_count[cur_index]
+                confusion_matrix[i_label, i_pred] = label_count[cur_index]
     return confusion_matrix
