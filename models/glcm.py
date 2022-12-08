@@ -3,6 +3,7 @@ import cv2
 from PIL import Image
 import matplotlib.pyplot as plt
 import torch
+import torch.nn as nn
 
 def main():
     # test
@@ -11,14 +12,24 @@ def main():
     image = np.array(image)
     gray_image = np.dot(image[...,:3], [0.2989, 0.5870, 0.1140])
     glcm_np = get_glcm_np(gray_image)
-    # glcm = get_glcm(torch.tensor(gray_image))
-    # a = torch.Tensor(glcm_np - glcm.numpy()).unique()
-    plt.subplot(1, 2, 1)
-    plt.imshow(gray_image / 255)
-    glcm_mean = get_glcm_mean_np(glcm_np)
-    plt.subplot(1, 2, 2)
-    plt.imshow(glcm_mean / 255)
+    glcm = get_glcm(torch.tensor(gray_image))
+    features = get_glcm_features(glcm)
+    plt.subplot(2, 5, 1)
+    plt.imshow(image)
+    for i in range(9):
+        plt.subplot(2, 5, i + 2)
+        plt.imshow(features[i, :, :])
     plt.show()
+
+    # a = torch.Tensor(glcm_np - glcm.numpy()).unique()
+    
+    # plt.subplot(1, 2, 1)
+    # plt.imshow(gray_image / 255)
+    # glcm_mean = get_glcm_mean_np(glcm_np)
+    # plt.subplot(1, 2, 2)
+    # plt.imshow(glcm_mean / 255)
+    # plt.show()
+
     # for i in range(3):
     #     im = image[:, :, i]
     #     glcm_mean = get_glcm_mean_np(im)
@@ -26,13 +37,13 @@ def main():
     #     plt.imshow(glcm_mean)
     #     plt.show()
 
-def get_glcm(img, vmin=0, vmax=255, nbit=8, kernel_size=5):
+def get_glcm(img, vmin=0, vmax=255, nbit=4, kernel_size=5, device="cuda:9"):
     mi, ma = vmin, vmax
     ks = kernel_size
     h,w = img.shape
 
     # digitize
-    bins = torch.linspace(mi, ma+1, nbit+1)
+    bins = torch.linspace(mi, ma+1, nbit+1).to(device)
     # gl1 = np.digitize(img, bins) - 1
     gl1 = torch.bucketize(img, bins) - 1 # digitize
     gl2 = torch.cat((gl1[:,1:], gl1[:,-1:]), dim=1) # append
@@ -41,7 +52,7 @@ def get_glcm(img, vmin=0, vmax=255, nbit=8, kernel_size=5):
     glcm = np.zeros((nbit, nbit, h, w), dtype=np.uint8)
     for i in range(nbit):
         for j in range(nbit):
-            mask = ((gl1==i) & (gl2==j))
+            mask = ((gl1==i) & (gl2==j)).cpu()
             glcm[i,j, mask] = 1
 
     kernel = np.ones((ks, ks), dtype=np.uint8)
@@ -52,27 +63,55 @@ def get_glcm(img, vmin=0, vmax=255, nbit=8, kernel_size=5):
     glcm = torch.Tensor(glcm).float()
     return glcm
 
+
 def get_glcm_features(glcm, kernal_size=5):
-    '''
-    0 - mean
-    1 - std
-    2 - contrast
-    3 - dissimilarity
-    4 - homogeneity
-    5 - asm
-    6 - energy
-    7 - max
-    8 - entropy
-    '''
+
     nbit, _, h, w = glcm.shape
     num_features = 9
     features = torch.zeros((num_features, h, w), dtype=torch.float32)
+     
+    for i in range(nbit):
+        features[0, :, :] += torch.sum(glcm[i] * i / (nbit)**2, dim=0)
+        for j in range(nbit):
+            features[2, :, :] += glcm[i,j] * (i-j)**2
+            features[3, :, :] += glcm[i,j] * np.abs(i-j)
+            features[4, :, :] += glcm[i,j] / (1.+(i-j)**2)
+            
     for i in range(nbit):
         for j in range(nbit):
-            pass
+            features[1, :, :] += (glcm[i,j] * i - features[0, :, :])**2
+    features[5, :, :]  += torch.sum(glcm**2, dim=(0, 1))
+    features[6, :, :] = torch.sqrt(features[5, :, :])
+    features[7, :, :] = torch.amax(glcm, dim=(0, 1))
+    pnorm = glcm / torch.sum(glcm, dim=(0, 1)) + 1./(kernal_size ** 2)
+    features[8, :, :] = torch.sum(-pnorm * torch.log(pnorm), dim=(0, 1))
+    return features
 
 
-# Adapted from reference: https://github.com/1044197988/Python-Image-feature-extraction/blob/master/%E7%BA%B9%E7%90%86%E7%89%B9%E5%BE%81/GLCM/fast_glcm.py
+def get_glcm_features1(glcm, kernal_size=5):
+    nbit, _, h, w = glcm.shape
+    num_features = 1
+    features = torch.zeros((num_features, h, w), dtype=torch.float32)
+     
+    # for i in range(nbit):
+    #     features[0, :, :] += torch.sum(glcm[i] * i / (nbit)**2, dim=0)
+    #     for j in range(nbit):
+    #         features[2, :, :] += glcm[i,j] * (i-j)**2
+    #         features[3, :, :] += glcm[i,j] * np.abs(i-j)
+    #         features[4, :, :] += glcm[i,j] / (1.+(i-j)**2)
+            
+    # for i in range(nbit):
+    #     for j in range(nbit):
+    #         features[1, :, :] += (glcm[i,j] * i - features[0, :, :])**2
+    # features[5, :, :]  += torch.sum(glcm**2, dim=(0, 1))
+    # features[6, :, :] = torch.sqrt(features[5, :, :])
+    # features[7, :, :] = torch.amax(glcm, dim=(0, 1))
+    pnorm = glcm / torch.sum(glcm, dim=(0, 1)) + 1./(kernal_size ** 2)
+    features[0, :, :] = torch.sum(-pnorm * torch.log(pnorm), dim=(0, 1))
+    return features
+
+
+# Below are adapted from reference: https://github.com/1044197988/Python-Image-feature-extraction/blob/master/%E7%BA%B9%E7%90%86%E7%89%B9%E5%BE%81/GLCM/fast_glcm.py
 def get_glcm_np(img, vmin=0, vmax=255, nbit=8, kernel_size=5):
     mi, ma = vmin, vmax
     ks = kernel_size

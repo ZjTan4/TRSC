@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torchvision
+from models.glcm import get_glcm, get_glcm_features, get_glcm_features1
 
 class Block(nn.Module):
     def __init__(self, in_ch, out_ch) -> None:
@@ -95,17 +96,30 @@ class UNet(nn.Module):
 
 class UNet_GLCM(nn.Module):
     def __init__(self, 
-        encoder_chs=(3, 16, 32, 64, 128), 
+        encoder_chs=(12, 16, 32, 64, 128), 
         decoder_chs=(128, 64, 32, 16), 
         num_class=1, 
+        device='cuda:9'
     ) -> None:
         super().__init__()
         self.encoder = Encoder(encoder_chs)
         self.decoder = Decoder(decoder_chs)
         self.head = nn.Conv2d(decoder_chs[-1], num_class, 1)
+        self.device = device
 
     def forward(self, x):
-        
+        batch, c, h, w = x.shape
+        glcm_weight = 0.5
+        glcm_features = torch.zeros((batch, 9, h, w))
+        # glcm_features = torch.zeros((batch, 1, h, w))
+        for i in range(batch):
+            gray_img = x[i, :, :, :].mean(dim=0)
+            glcm = get_glcm(gray_img, device=self.device)
+            glcm_features[i, :, :, :] = get_glcm_features(glcm)
+            # glcm_features[i, :, :, :] = get_glcm_features1(glcm)
+        glcm_features = glcm_features * glcm_weight
+        glcm_features = glcm_features.to(self.device)
+        x = torch.cat((x, glcm_features), dim=1)
         encoder_features = self.encoder(x)[::-1]
         out = self.decoder(encoder_features[0], encoder_features[1:])
         out = self.head(out)
