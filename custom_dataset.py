@@ -66,7 +66,7 @@ class CustomDatsetIO(torch.utils.data.Dataset):
         if self.gt_transform is not None:
             mask = self.gt_transform(mask)
 
-        return image, mask, str(self.masks[index].name)
+        return image, (mask * 256).long(), str(self.masks[index].name)
 
     def __len__(self):
         return len(self.images)

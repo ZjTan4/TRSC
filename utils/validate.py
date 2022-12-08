@@ -5,9 +5,6 @@ import torch.nn.functional as F
 from torchmetrics.classification import ConfusionMatrix
 
 # Adapted from OFFSEG by Viswanath et al. 
-def multi_scale_inference(test_dataset, model, image, scales):
-    pass
-
 def testval(test_dataset, testloader, model, device,
             sv_dir='', sv_pred=False, num_classes=6):
     model.eval()
@@ -47,6 +44,14 @@ def testval(test_dataset, testloader, model, device,
             pred = torch.argmax(pred, dim=3)
             # pred = np.asarray(np.argmax(pred, axis=3), dtype=np.uint8)
             label = label.squeeze()
+ 
+            # print(pred.unique())
+            # print(pred.shape)
+            # print(pred[0])
+            # print(label.unique())
+            # print(label.shape)
+            # print(label[0]) 
+
             confusion_matrix += compute_confusion_matrix(torch.Tensor(pred), torch.Tensor(label)).cpu().numpy()
 
             if sv_pred:
@@ -55,24 +60,45 @@ def testval(test_dataset, testloader, model, device,
                     os.mkdir(sv_path)
                 test_dataset.save_pred(pred, sv_path, name)
 
-            if index % 100 == 0:
-                # logging.info('processing: %d images' % index)
-                pos = confusion_matrix.sum(1)
-                res = confusion_matrix.sum(0)
-                tp = np.diag(confusion_matrix)
-                IoU_array = (tp / np.maximum(1.0, pos + res - tp))
-                mean_IoU = IoU_array.mean()
-                # logging.info('mIoU: %.4f' % (mean_IoU))
+            # if index % 100 == 0:
+            #     # logging.info('processing: %d images' % index)
+            #     pos = confusion_matrix.sum(1)
+            #     true = confusion_matrix.sum(0)
+            #     tp = np.diag(confusion_matrix)
+            #     IoU_array = (tp / np.maximum(1.0, pos + true - tp))
+            #     mean_IoU = IoU_array.mean()
+            #     # logging.info('mIoU: %.4f' % (mean_IoU))
 
+    return confusion_matrix
+
+def get_IoU(confusion_matrix):
     pos = confusion_matrix.sum(1)
-    res = confusion_matrix.sum(0)
+    true = confusion_matrix.sum(0)
+    tp = np.diag(confusion_matrix)
+    IoU_array = (tp / np.maximum(1.0, pos + true - tp))
+    mean_IoU = IoU_array.mean()
+    return mean_IoU, IoU_array
+
+def get_Acc(confusion_matrix):
+    pos = confusion_matrix.sum(1)
     tp = np.diag(confusion_matrix)
     pixel_acc = tp.sum()/pos.sum()
     mean_acc = (tp/np.maximum(1.0, pos)).mean()
-    IoU_array = (tp / np.maximum(1.0, pos + res - tp))
-    mean_IoU = IoU_array.mean()
+    return mean_acc, pixel_acc
 
-    return mean_IoU, IoU_array, pixel_acc, mean_acc
+def get_rate(confusion_matrix):
+    pos = confusion_matrix.sum(1)
+    true = confusion_matrix.sum(0)
+    tp = np.diag(confusion_matrix)
+    fp = pos - tp
+    tn = true - tp
+    fn = confusion_matrix.sum() - tp - fp - tn
+    return tp, fp, tn, fn
+
+def get_Fmeasure(confusion_matrix):
+    tp, fp, tn, fn = get_rate(confusion_matrix)
+    fm = (2 * tp) / (2 * tp + fp + fn)
+    return fm.mean(), fm
 
 def get_confusion_matrix(label, pred, size, num_class,):
 # ignore=-1):

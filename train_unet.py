@@ -9,7 +9,8 @@ from models.cnn import CNN1
 from models.hrnet import HRNet
 from models.unet import UNet
 from custom_dataset import CustomDatsetMemory, CustomDatsetIO
-from utils.validate import get_confusion_matrix, testval
+from utils.validate import *
+from utils.visualize import visualize
 import matplotlib.pyplot as plt
 
 # if not os.path.exists('./model'):
@@ -29,20 +30,20 @@ img_ext = '.png'
 
 batch_size = 10
 img_transform = transforms.Compose([
-    # transforms.Resize((552, 688)),
-    transforms.CenterCrop((544, 688)),
+    transforms.Resize((552, 688)),
+    # transforms.CenterCrop((544, 688)),
     transforms.ToTensor(), 
 ])
 gt_transform = transforms.Compose([
-    # transforms.Resize((552, 688)),
-    transforms.CenterCrop((544, 688)),
+    transforms.Resize((552, 688)),
+    # transforms.CenterCrop((544, 688)),
     transforms.ToTensor(), 
 ])
 TRAIN_RATIO = 0.7
 # dataset = CustomDatsetMemory(data_path)
 # dataset = CustomDatsetIO(data_path, img_ext=img_ext)
 dataset = CustomDatsetIO(data_path, img_ext=img_ext, img_transform=img_transform, gt_transform=gt_transform)
-train_set, test_set = torch.utils.data.random_split(dataset, [int(TRAIN_RATIO * len(dataset)), len(dataset) - int(TRAIN_RATIO * len(dataset))])
+train_set, test_set, _ = torch.utils.data.random_split(dataset, [int(TRAIN_RATIO * len(dataset) * 0.1), int(len(dataset) * 0.1) - int(TRAIN_RATIO * len(dataset) * 0.1), len(dataset) - int(len(dataset) * 0.1)])
 train_loader = torch.utils.data.DataLoader(train_set, batch_size=batch_size, drop_last=True, shuffle=True, 
     pin_memory=True, prefetch_factor=4, num_workers=4,
 )
@@ -50,8 +51,8 @@ test_loader = torch.utils.data.DataLoader(test_set, batch_size=batch_size, drop_
     pin_memory=True, prefetch_factor=4, num_workers=4,
 )
 
-print(len(train_loader))
-print(len(test_loader))
+print("train loader batches: {}".format(len(train_loader)))
+print("test loader batches: {}".format(len(test_loader)))
 num_epoch = 200
 
 # model = CNN1().to(device)
@@ -60,13 +61,14 @@ model = UNet(encoder_chs=(3, 16, 32, 64, 128), decoder_chs=(128, 64, 32, 16), nu
 # model = UNet(encoder_chs=(3, 16, 32, 64), decoder_chs=(64, 32, 16), num_class=6).to(device)
 criterion = nn.CrossEntropyLoss()
 optimizer = torch.optim.SGD(
-    params=model.parameters(), lr=0.01, 
+    params=model.parameters(), lr=0.0001, 
     # Optional Params
     momentum=0.9, 
     weight_decay=0.0001, 
     nesterov=False,
 )
 model.train()
+IoUs = []
 for epoch in range(num_epoch):
     print("Epoch: {}".format(epoch + 1))
     start = datetime.now()
@@ -89,6 +91,10 @@ for epoch in range(num_epoch):
         loss.backward()
         optimizer.step()
 
+        # if epoch == 2 and i == 200:
+        #     vis = torch.argmax(pred_mask[0], dim=0)
+        #     visualize(vis.cpu())
+
         # print(mask.unique())
         # plt.imshow(img[0].permute(1, 2, 0).cpu())
         # plt.show()
@@ -98,7 +104,11 @@ for epoch in range(num_epoch):
         # plt.show()
         # plt.imshow(mask[1].cpu())
         # plt.show()
-    mean_IoU, IoU_array, pixel_acc, mean_acc = testval(test_set, test_loader, model, device)
+    confusion_matrix = testval(train_set, train_loader, model, device)
+    mean_acc, pixel_acc = get_Acc(confusion_matrix)
+    mean_IoU, IoU_array = get_IoU(confusion_matrix)
+    IoUs.append(mean_IoU)
+    print(confusion_matrix)
     print("Mean IoU: {}".format(mean_IoU))
     print("Mean Accuracy: {}".format(mean_acc))
     print("IoU: {}".format(IoU_array))

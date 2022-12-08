@@ -76,3 +76,20 @@ class UNet(nn.Module):
         out = self.decoder(encoder_features[0], encoder_features[1:])
         out = self.head(out)
         return F.log_softmax(out, dim=1)
+
+class UNet_GLCM(nn.Module):
+    def __init__(self, 
+        encoder_chs=(3, 16, 32, 64, 128), 
+        decoder_chs=(128, 64, 32, 16), 
+        num_class=1, 
+    ) -> None:
+        super().__init__()
+        self.encoder = Encoder(encoder_chs)
+        self.decoder = Decoder(decoder_chs)
+        self.head = nn.Conv2d(decoder_chs[-1], num_class, 1)
+
+    def forward(self, x):
+        encoder_features = self.encoder(x)[::-1]
+        out = self.decoder(encoder_features[0], encoder_features[1:])
+        out = self.head(out)
+        return F.log_softmax(out, dim=1)
