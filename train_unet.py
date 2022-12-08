@@ -7,7 +7,7 @@ import torch.nn as nn
 
 from models.cnn import CNN1
 from models.hrnet import HRNet
-from models.unet import UNet
+from models.unet import UNet, UNet_GLCM
 from custom_dataset import CustomDatsetMemory, CustomDatsetIO
 from utils.validate import *
 from utils.visualize import visualize

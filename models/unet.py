@@ -28,6 +28,13 @@ class Encoder(nn.Module):
         self.pool = nn.MaxPool2d(2)
     
     def forward(self, x):
+        '''
+        torch.Size([10, 128, 69, 86])
+        torch.Size([10, 64, 138, 172])
+        torch.Size([10, 32, 276, 344])
+        torch.Size([10, 16, 552, 688])
+                    10,  3, 552, 688
+        '''
         features = []
         for block in self.encoder_blocks:
             x = block(x)
@@ -47,6 +54,13 @@ class Decoder(nn.Module):
         ])
     
     def forward(self, x, encoder_features):
+        '''
+        torch.Size([10, 128, 69, 86])
+        torch.Size([10, 64, 138, 172])
+        torch.Size([10, 32, 276, 344])
+        torch.Size([10, 16, 552, 688])
+                    10,  6, 552, 688
+        '''
         for i in range(len(self.decoder_blocks)):
             x = self.upconvolutions[i](x)
             encoder_feature = self.crop(x, encoder_features[i])
@@ -58,7 +72,6 @@ class Decoder(nn.Module):
         _, _, H, W = x.shape
         encoder_feature = torchvision.transforms.CenterCrop([H, W])(encoder_features)
         return encoder_feature
-
 
 class UNet(nn.Module):
     def __init__(self, 
@@ -73,6 +86,9 @@ class UNet(nn.Module):
 
     def forward(self, x):
         encoder_features = self.encoder(x)[::-1]
+        # for i in range(len(encoder_features)):
+        #     print(encoder_features[i].shape)
+        # exit(0)
         out = self.decoder(encoder_features[0], encoder_features[1:])
         out = self.head(out)
         return F.log_softmax(out, dim=1)
@@ -89,6 +105,7 @@ class UNet_GLCM(nn.Module):
         self.head = nn.Conv2d(decoder_chs[-1], num_class, 1)
 
     def forward(self, x):
+        
         encoder_features = self.encoder(x)[::-1]
         out = self.decoder(encoder_features[0], encoder_features[1:])
         out = self.head(out)
