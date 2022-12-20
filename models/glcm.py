@@ -49,26 +49,34 @@ def get_glcm(img, vmin=0, vmax=255, nbit=4, kernel_size=5, device="cuda:9"):
     gl2 = torch.cat((gl1[:,1:], gl1[:,-1:]), dim=1) # append
 
     # make glcm
-    glcm = np.zeros((nbit, nbit, h, w), dtype=np.uint8)
+    # glcm = np.zeros((nbit, nbit, h, w), dtype=np.uint8)
+    glcm = torch.zeros((nbit, nbit, h, w), dtype=torch.float32).to(device)
     for i in range(nbit):
         for j in range(nbit):
-            mask = ((gl1==i) & (gl2==j)).cpu()
+            # mask = ((gl1==i) & (gl2==j)).cpu()
+            mask = ((gl1==i) & (gl2==j))
             glcm[i,j, mask] = 1
 
-    kernel = np.ones((ks, ks), dtype=np.uint8)
+    # kernel = np.ones((ks, ks), dtype=np.uint8)
+    kernel = torch.ones((ks, ks), dtype=torch.float32).to(device)
+    conv = nn.Conv2d(1, 1, ks, padding=int(ks/2), bias=False).to(device)
+    conv.weight.requires_grad = False
+    conv_kernel = torch.Tensor(kernel).unsqueeze(0).unsqueeze(0).repeat(4, 4, 1, 1)
+    conv.weight.data = conv_kernel
     for i in range(nbit):
         for j in range(nbit):
-            glcm[i,j] = cv2.filter2D(glcm[i,j], -1, kernel)
-
+            # glcm[i,j] = cv2.filter2D(glcm[i,j], -1, kernel)
+            # print(conv(glcm[i, j].unsqueeze(0).unsqueeze(0)).shape)
+            glcm[i, j] = conv(glcm[i, j].unsqueeze(0).unsqueeze(0)).squeeze()
+    # glcm = conv(glcm)
     glcm = torch.Tensor(glcm).float()
     return glcm
 
 
-def get_glcm_features(glcm, kernal_size=5):
-
+def get_glcm_features(glcm, kernel_size=5, device="cuda:9"):
     nbit, _, h, w = glcm.shape
     num_features = 9
-    features = torch.zeros((num_features, h, w), dtype=torch.float32)
+    features = torch.zeros((num_features, h, w), dtype=torch.float32).to(device)
      
     for i in range(nbit):
         features[0, :, :] += torch.sum(glcm[i] * i / (nbit)**2, dim=0)
@@ -83,15 +91,14 @@ def get_glcm_features(glcm, kernal_size=5):
     features[5, :, :]  += torch.sum(glcm**2, dim=(0, 1))
     features[6, :, :] = torch.sqrt(features[5, :, :])
     features[7, :, :] = torch.amax(glcm, dim=(0, 1))
-    pnorm = glcm / torch.sum(glcm, dim=(0, 1)) + 1./(kernal_size ** 2)
+    pnorm = glcm / torch.sum(glcm, dim=(0, 1)) + 1./(kernel_size ** 2)
     features[8, :, :] = torch.sum(-pnorm * torch.log(pnorm), dim=(0, 1))
     return features
 
 
-def get_glcm_features1(glcm, kernal_size=5):
+def get_glcm_features1(glcm, kernel_size=5, num_features = 1, device="cuda:9"):
     nbit, _, h, w = glcm.shape
-    num_features = 1
-    features = torch.zeros((num_features, h, w), dtype=torch.float32)
+    features = torch.zeros((num_features, h, w), dtype=torch.float32).to(device)
      
     # for i in range(nbit):
     #     features[0, :, :] += torch.sum(glcm[i] * i / (nbit)**2, dim=0)
@@ -106,7 +113,7 @@ def get_glcm_features1(glcm, kernal_size=5):
     # features[5, :, :]  += torch.sum(glcm**2, dim=(0, 1))
     # features[6, :, :] = torch.sqrt(features[5, :, :])
     # features[7, :, :] = torch.amax(glcm, dim=(0, 1))
-    pnorm = glcm / torch.sum(glcm, dim=(0, 1)) + 1./(kernal_size ** 2)
+    pnorm = glcm / torch.sum(glcm, dim=(0, 1)) + 1./(kernel_size ** 2)
     features[0, :, :] = torch.sum(-pnorm * torch.log(pnorm), dim=(0, 1))
     return features
 

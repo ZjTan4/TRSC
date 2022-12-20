@@ -64,6 +64,7 @@ class BottleNeck(nn.Module):
 
 class HRNet(nn.Module):
     def __init__(self) -> None:
+        # TODO
         super().__init__()
     
     def forward(self, x):

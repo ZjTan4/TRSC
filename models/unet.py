@@ -109,14 +109,14 @@ class UNet_GLCM(nn.Module):
 
     def forward(self, x):
         batch, c, h, w = x.shape
-        glcm_weight = 0.5
+        glcm_weight = 0.001
         glcm_features = torch.zeros((batch, 9, h, w))
         # glcm_features = torch.zeros((batch, 1, h, w))
         for i in range(batch):
             gray_img = x[i, :, :, :].mean(dim=0)
             glcm = get_glcm(gray_img, device=self.device)
-            glcm_features[i, :, :, :] = get_glcm_features(glcm)
-            # glcm_features[i, :, :, :] = get_glcm_features1(glcm)
+            glcm_features[i, :, :, :] = get_glcm_features(glcm, device=self.device)
+            # glcm_features[i, :, :, :] = get_glcm_features1(glcm, device=self.device)
         glcm_features = glcm_features * glcm_weight
         glcm_features = glcm_features.to(self.device)
         x = torch.cat((x, glcm_features), dim=1)

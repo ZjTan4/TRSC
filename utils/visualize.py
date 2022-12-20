@@ -16,9 +16,9 @@ def visualize(mask):
 
     print(torch.Tensor(out).unique(return_counts=True))
     
-    plt.imshow(out / 255)
-    plt.show()
-    return out
+    # plt.imshow(out / 255)
+    # plt.show()
+    return out / 255
 
 def main():
     filename = "creek_00001"

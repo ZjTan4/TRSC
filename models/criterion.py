@@ -7,4 +7,5 @@ class CrossEntropy(nn.Module):
         self.criterion = nn.CrossEntropyLoss(weight=weight)
     
     def forward(self, prediction, target):
+        # TODO
         pass

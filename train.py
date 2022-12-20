@@ -21,7 +21,7 @@ if use_cuda:
     print('use cuda')
 else:
     print('cpu')
-device = torch.device("cuda:2" if use_cuda else "cpu")
+device = torch.device("cuda:5" if use_cuda else "cpu")
 
 data_path = "./data/RUGD"
 img_ext = '.png'
@@ -29,8 +29,8 @@ img_ext = '.png'
 # img_ext = '.jpg'
 
 batch_size = 10
-# img_size = (552, 688)
-img_size = (128, 128)
+img_size = (552, 688)
+# img_size = (128, 128)
 img_transform = transforms.Compose([
     transforms.Resize(img_size),
     # transforms.Grayscale(num_output_channels=1), 
@@ -46,7 +46,7 @@ TRAIN_RATIO = 0.7
 # dataset = CustomDatsetMemory(data_path)
 # dataset = CustomDatsetIO(data_path, img_ext=img_ext)
 dataset = CustomDatsetIO(data_path, img_ext=img_ext, img_transform=img_transform, gt_transform=gt_transform)
-trset, teset, _ = torch.utils.data.random_split(dataset, [int(TRAIN_RATIO * len(dataset) * 0.1), int(len(dataset) * 0.1) - int(TRAIN_RATIO * len(dataset) * 0.1), len(dataset) - int(len(dataset) * 0.1)])
+trset, teset, _ = torch.utils.data.random_split(dataset, [int(TRAIN_RATIO * len(dataset)), int(len(dataset)) - int(TRAIN_RATIO * len(dataset)), len(dataset) - int(len(dataset))])
 trloader = torch.utils.data.DataLoader(trset, batch_size=batch_size, drop_last=True, shuffle=True, 
     pin_memory=True, prefetch_factor=4, num_workers=4,
 )
@@ -60,9 +60,9 @@ num_epoch = 200
 
 # model = CNN1().to(device)
 # model = HRNet().to(device)
-model = UNet(encoder_chs=(3, 16, 32, 64, 128), decoder_chs=(128, 64, 32, 16), num_class=6).to(device)
+# model = UNet(encoder_chs=(3, 16, 32, 64, 128), decoder_chs=(128, 64, 32, 16), num_class=6).to(device)
 # model = UNet(encoder_chs=(3, 16, 32, 64), decoder_chs=(64, 32, 16), num_class=6).to(device)
-# model = UNet_GLCM(encoder_chs=(4, 16, 32, 64, 128), decoder_chs=(128, 64, 32, 16), num_class=6, device=device).to(device)
+model = UNet_GLCM(encoder_chs=(12, 16, 32, 64, 128), decoder_chs=(128, 64, 32, 16), num_class=6, device=device).to(device)
 criterion = nn.CrossEntropyLoss()
 optimizer = torch.optim.SGD(
     params=model.parameters(), lr=0.0001, 
@@ -119,4 +119,20 @@ for epoch in range(num_epoch):
     print("Accuracy: {}".format(pixel_acc))
     print("Total Loss: {}".format(total_loss))
     print("Total Time: {}".format(datetime.now() - start))
+    # if epoch == 199:
+    #     image, label, name = trloader[0]
+    #     pred = model(image)
+    #     pred = torch.argmax(pred, dim=1)
+    #     for i in range(4):
+    #         plt.subplot(2, 4, i + 1)
+    #         plt.show(visualize(pred[i]))
+    #         plt.subplot(2, 4, i + 5)
+    #         plt.show(label(pred[i]))
         # start = datetime.now()
+# print(IoUs)
+print("GLCM")
+torch.save(model.state_dict(), "model_GLCM.pt")
+
+# torch.save(model.state_dict(), "model.pt")
+
+# plt.show()
