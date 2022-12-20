@@ -28,11 +28,11 @@ def main():
     dataset = CustomDatsetIO(test_dataset, img_ext=img_ext, img_transform=img_transform, gt_transform=gt_transform)
     test_loader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, shuffle=True)
 
-    baseline = UNet(num_of_classes=4).to(device)
+    baseline = UNet(encoder_chs=(3, 16, 32, 64, 128), decoder_chs=(128, 64, 32, 16), num_class=6).to(device)
     baseline.load_state_dict(torch.load(baseline_path))
     baseline.eval()
 
-    glcm = UNet_GLCM(num_of_classes=4, device=device).to(device)
+    glcm =  UNet_GLCM(encoder_chs=(12, 16, 32, 64, 128), decoder_chs=(128, 64, 32, 16), num_class=6, device=device).to(device)
     glcm.load_state_dict(torch.load(GLCM_path))
     glcm.eval()
 

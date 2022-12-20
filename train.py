@@ -22,6 +22,8 @@ if use_cuda:
 else:
     print('cpu')
 device = torch.device("cuda:5" if use_cuda else "cpu")
+# device = torch.device("cuda:9" if use_cuda else "cpu")
+
 
 data_path = "./data/RUGD"
 img_ext = '.png'
